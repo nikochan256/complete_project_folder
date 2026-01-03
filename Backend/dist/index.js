@@ -1,0 +1,14 @@
+import express from "express";
+import cors from "cors";
+const PORT = process.env.PORT || 4000;
+import { router as userRouter } from "./routes/user.router.js";
+import MerchantRouter from "./routes/merchant.router.js";
+import path from "node:path";
+const app = express();
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use(cors({ origin: "*" }));
+app.use(express.json());
+app.get("/health", (req, res) => res.send("server healthy"));
+app.use("/user", userRouter);
+app.use("/merchant", MerchantRouter);
+app.listen(PORT, () => console.log("server created at ", PORT));

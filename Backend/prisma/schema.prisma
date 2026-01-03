@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum KYBStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  UNDER_REVIEW
+}
+
+enum PaymentMethod {
+  ETH
+  BTC
+}
+
+// User/Customer Model
+model User {
+  id            Int      @id @default(autoincrement())
+  email         String?  @unique
+  name          String?
+  walletAddress String   @unique
+  homeAddress   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cart              Cart?
+  orders            Order[]
+  recentlyViewed    RecentlyViewedProduct[]
+
+  @@map("users")
+}
+
+model Cart {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  cartItems CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("carts")
+}
+
+// Seller/Merchant Model
+model Seller {
+  id              Int     @id @default(autoincrement())
+  shopName        String
+  walletAddress   String  @unique
+  businessEmail   String  @unique
+  store_id        Int     @unique
+  api_key         String  @unique
+  contactNumber   String?
+  businessAddress String?
+  logoImg         String?
+  description     String?
+
+  // KYB Information
+  kybDocuments    String? // Store file paths/URLs as JSON or separate table
+  kybStatus       KYBStatus @default(PENDING)
+  isApproved      Boolean   @default(false)
+  approvedAt      DateTime?
+  rejectionReason String?
+
+  // Store all products as a big string (JSON stringified array)
+  productsData    String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sellers")
+}
+
+// Cart Item Model
+model CartItem {
+  id       Int @id @default(autoincrement())
+  quantity Int @default(1)
+
+  cartId Int
+  cart   Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  variantId    String?
+  storeId      Int
+  productImg   String
+  productPrice Int
+  productName  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+// Order Model
+model Order {
+  id     Int         @id @default(autoincrement())
+  userId Int
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  orderItems OrderItem[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("orders")
+}
+
+// Order Item Model
+model OrderItem {
+  id       Int @id @default(autoincrement())
+  quantity Int @default(1)
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Fields from CartItem
+  variantId    String?
+  storeId      Int
+  productImg   String
+  productPrice Int
+  productName  String
+
+  // Additional fields for OrderItem
+  status          OrderStatus @default(PENDING_PAYMENT)
+  totalAmount     Int?
+  deliveryAddress String
+  userEmail       String
+  city            String
+  zipCode         String
+  state           String
+  country         String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// Review Model
+model Review {
+  id      Int     @id @default(autoincrement())
+  rating  Int // 1-5 stars
+  comment String? @db.Text
+
+  productId Int
+
+  // Could link to User if you want verified purchases only
+  reviewerName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@map("reviews")
+}
+
+// Recently Viewed Products Model
+model RecentlyViewedProduct {
+  id       Int @id @default(autoincrement())
+  
+  userId   Int
+  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId    Int
+  storeId      Int
+  productName  String
+  productImg   String
+  productPrice Int
+  variantId    String?
+
+  viewedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, viewedAt])
+  @@map("recently_viewed_products")
+}
