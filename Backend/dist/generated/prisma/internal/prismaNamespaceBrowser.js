@@ -40,8 +40,10 @@ export const JsonNull = runtime.JsonNull;
 export const AnyNull = runtime.AnyNull;
 export const ModelName = {
     User: 'User',
+    Admin: 'Admin',
     Cart: 'Cart',
     Seller: 'Seller',
+    Product: 'Product',
     CartItem: 'CartItem',
     Order: 'Order',
     OrderItem: 'OrderItem',
@@ -66,6 +68,13 @@ export const UserScalarFieldEnum = {
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };
+export const AdminScalarFieldEnum = {
+    id: 'id',
+    email: 'email',
+    password: 'password',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+};
 export const CartScalarFieldEnum = {
     id: 'id',
     userId: 'userId',
@@ -77,8 +86,7 @@ export const SellerScalarFieldEnum = {
     shopName: 'shopName',
     walletAddress: 'walletAddress',
     businessEmail: 'businessEmail',
-    store_id: 'store_id',
-    api_key: 'api_key',
+    password: 'password',
     contactNumber: 'contactNumber',
     businessAddress: 'businessAddress',
     logoImg: 'logoImg',
@@ -88,34 +96,49 @@ export const SellerScalarFieldEnum = {
     isApproved: 'isApproved',
     approvedAt: 'approvedAt',
     rejectionReason: 'rejectionReason',
-    productsData: 'productsData',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
+    api_key: 'api_key',
+    store_id: 'store_id'
+};
+export const ProductScalarFieldEnum = {
+    id: 'id',
+    name: 'name',
+    description: 'description',
+    price: 'price',
+    quantity: 'quantity',
+    category: 'category',
+    image1: 'image1',
+    image2: 'image2',
+    image3: 'image3',
+    sellerId: 'sellerId',
+    isActive: 'isActive',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };
 export const CartItemScalarFieldEnum = {
     id: 'id',
     quantity: 'quantity',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
     cartId: 'cartId',
     variantId: 'variantId',
-    storeId: 'storeId',
     productImg: 'productImg',
-    productPrice: 'productPrice',
     productName: 'productName',
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    productPrice: 'productPrice',
+    productId: 'productId'
 };
 export const OrderScalarFieldEnum = {
     id: 'id',
-    userId: 'userId',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    userId: 'userId'
 };
 export const OrderItemScalarFieldEnum = {
     id: 'id',
     quantity: 'quantity',
     orderId: 'orderId',
     variantId: 'variantId',
-    storeId: 'storeId',
     productImg: 'productImg',
     productPrice: 'productPrice',
     productName: 'productName',
@@ -128,7 +151,8 @@ export const OrderItemScalarFieldEnum = {
     state: 'state',
     country: 'country',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    productId: 'productId'
 };
 export const ReviewScalarFieldEnum = {
     id: 'id',

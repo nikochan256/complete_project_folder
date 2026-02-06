@@ -110,7 +110,7 @@ export const createNewOrder = async(payload: newOrderInterface) => {
         orderId: order.id,
         quantity: payload.quantity || 1,
         variantId: String(payload.variantId),
-        storeId: payload.storeId,
+        productId: payload.storeId,
         productImg: payload.productImg,
         productPrice: payload.productPrice,
         productName: payload.productName,

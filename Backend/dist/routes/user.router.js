@@ -8,8 +8,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 import express from "express";
-import { createNewOrder, createUser, getCartDetails, getCartItem, } from "../services/user.service.js";
+import { createUser, getCartDetails, getCartItem, } from "../services/user.service.js";
 import { OrderStatus } from "../generated/prisma/enums.js";
+import prisma from "../lib/prisma.js";
 export const router = express.Router();
 const countryNameToCode = {
     'united states': 'US',
@@ -72,6 +73,80 @@ const stateNameToCode = {
     'tripura': 'TR', 'uttar pradesh': 'UP', 'uttarakhand': 'UK', 'west bengal': 'WB',
     'delhi': 'DL',
 };
+router.get("/all-products", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const category = req.query.category;
+        const search = req.query.search;
+        const skip = (page - 1) * limit;
+        // Build where clause
+        const where = {
+            isActive: true, // Only active products
+            seller: {
+                isApproved: true,
+                kybStatus: 'APPROVED'
+            }
+        };
+        // Filter by category if provided
+        if (category && category !== "ALL") {
+            where.category = category;
+        }
+        // Search by product name if provided
+        if (search) {
+            where.name = {
+                contains: search,
+                mode: 'insensitive'
+            };
+        }
+        // Get total count for pagination
+        const totalProducts = yield prisma.product.count({ where });
+        // Get products with seller information
+        const products = yield prisma.product.findMany({
+            where,
+            include: {
+                seller: {
+                    select: {
+                        id: true,
+                        shopName: true,
+                        businessEmail: true,
+                        logoImg: true,
+                        isApproved: true,
+                        kybStatus: true
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            },
+            skip,
+            take: limit
+        });
+        // Filter only products from approved sellers
+        const approvedProducts = products.filter(product => product.seller.isApproved && product.seller.kybStatus === 'APPROVED');
+        res.status(200).json({
+            msg: "Products fetched successfully",
+            data: {
+                products: approvedProducts,
+                pagination: {
+                    currentPage: page,
+                    totalPages: Math.ceil(totalProducts / limit),
+                    totalProducts: totalProducts,
+                    productsPerPage: limit,
+                    hasNextPage: page * limit < totalProducts,
+                    hasPrevPage: page > 1
+                }
+            }
+        });
+    }
+    catch (err) {
+        console.error("Error fetching all products:", err);
+        res.status(500).json({
+            msg: "Failed to fetch products",
+            error: err.message
+        });
+    }
+}));
 router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     console.log("request recieved");
     const body = req.body;
@@ -111,6 +186,129 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
 //                               res.status(500).json({msg:err})
 //                }
 // })
+// Add to Cart Route
+router.post('/add-to-cart', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { userId, productId, quantity = 1 } = req.body;
+        // Validate required fields
+        if (!userId || !productId) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID and Product ID are required'
+            });
+        }
+        // Validate quantity
+        if (quantity < 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Quantity must be at least 1'
+            });
+        }
+        // Check if product exists and is active
+        const product = yield prisma.product.findUnique({
+            where: { id: productId }
+        });
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found'
+            });
+        }
+        if (!product.isActive) {
+            return res.status(400).json({
+                success: false,
+                message: 'Product is not available'
+            });
+        }
+        // Check if requested quantity is available
+        if (quantity > product.quantity) {
+            return res.status(400).json({
+                success: false,
+                message: `Only ${product.quantity} items available in stock`
+            });
+        }
+        // Find or create user's cart
+        let cart = yield prisma.cart.findUnique({
+            where: { userId }
+        });
+        if (!cart) {
+            cart = yield prisma.cart.create({
+                data: { userId }
+            });
+        }
+        // Check if product already exists in cart
+        const existingCartItem = yield prisma.cartItem.findFirst({
+            where: {
+                cartId: cart.id,
+                productId: productId
+            }
+        });
+        let cartItem;
+        if (existingCartItem) {
+            // Update quantity if item already exists
+            const newQuantity = existingCartItem.quantity + quantity;
+            // Check if new quantity exceeds available stock
+            if (newQuantity > product.quantity) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot add ${quantity} more. Only ${product.quantity - existingCartItem.quantity} items left in stock`
+                });
+            }
+            cartItem = yield prisma.cartItem.update({
+                where: { id: existingCartItem.id },
+                data: { quantity: newQuantity }
+            });
+        }
+        else {
+            // Create new cart item
+            cartItem = yield prisma.cartItem.create({
+                data: {
+                    cartId: cart.id,
+                    productId: productId,
+                    quantity: quantity,
+                    productImg: product.image1,
+                    productName: product.name,
+                    productPrice: product.price,
+                    variantId: null
+                }
+            });
+        }
+        // Get updated cart with all items
+        const updatedCart = yield prisma.cart.findUnique({
+            where: { id: cart.id },
+            include: {
+                cartItems: {
+                    include: {
+                        product: true
+                    }
+                }
+            }
+        });
+        if (!updatedCart) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve cart'
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            message: existingCartItem ? 'Cart updated successfully' : 'Product added to cart',
+            data: {
+                cartItem,
+                cart: updatedCart,
+                totalItems: updatedCart.cartItems.reduce((sum, item) => sum + item.quantity, 0)
+            }
+        });
+    }
+    catch (error) {
+        console.error('Add to cart error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to add product to cart',
+            error: error
+        });
+    }
+}));
 // router.get("/single-product/:id" , async(req:Request,res:Response)=>{
 //                try{
 //                               const productId = Number(req.params.id);
@@ -182,14 +380,14 @@ function getStateCode(stateName, countryCode) {
     return '';
 }
 router.post("/users/:userId/order/items", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c;
     try {
         console.log('user placing order request reached here');
         const { userId } = req.params;
         console.log('User ID:', userId);
-        const { quantity, variantId, storeId, productImg, productPrice, productName, status, totalAmount, deliveryAddress, userEmail, city, zipCode, state, country, printfulApiKey, customerName, customerPhone, } = req.body;
+        const { quantity, variantId, productId, // ✅ Need this from frontend
+        productImg, productPrice, productName, status, totalAmount, deliveryAddress, userEmail, city, zipCode, state, country, customerName, customerPhone, } = req.body;
         // Validate required fields
-        if (!storeId ||
+        if (!productId ||
             !productImg ||
             !productPrice ||
             !productName ||
@@ -198,13 +396,11 @@ router.post("/users/:userId/order/items", (req, res) => __awaiter(void 0, void 0
             !city ||
             !zipCode ||
             !state ||
-            !country ||
-            !printfulApiKey ||
-            !variantId) {
+            !country) {
             return res.status(400).json({
                 error: "Missing required fields",
                 missingFields: {
-                    storeId: !storeId,
+                    productId: !productId,
                     productImg: !productImg,
                     productPrice: !productPrice,
                     productName: !productName,
@@ -214,87 +410,39 @@ router.post("/users/:userId/order/items", (req, res) => __awaiter(void 0, void 0
                     zipCode: !zipCode,
                     state: !state,
                     country: !country,
-                    printfulApiKey: !printfulApiKey,
-                    variantId: !variantId,
                 }
             });
         }
         const orderQuantity = quantity || 1;
         const calculatedTotal = totalAmount || productPrice * orderQuantity;
-        const payload = {
-            quantity: orderQuantity,
-            variantId,
-            storeId,
-            productImg,
-            productPrice,
-            productName,
-            status: status || OrderStatus.PENDING_PAYMENT,
-            totalAmount: calculatedTotal,
-            deliveryAddress,
-            userEmail,
-            city,
-            zipCode,
-            state,
-            country,
-            userId: parseInt(userId),
-        };
-        // Create order item in your database
-        const orderItem = yield createNewOrder(payload);
-        console.log('✅ Order item created in database:', orderItem.id);
-        // Convert country and state to ISO codes
-        const countryCode = getCountryCode(country);
-        const stateCode = getStateCode(state, countryCode);
-        console.log(`🌍 Converting: "${country}" -> "${countryCode}", "${state}" -> "${stateCode}"`);
-        // Prepare Printful order payload with ISO codes
-        const printfulPayload = {
-            recipient: Object.assign({ name: customerName || ((_a = deliveryAddress.split(",")[0]) === null || _a === void 0 ? void 0 : _a.trim()) || "Customer", address1: deliveryAddress, city: city, state_code: stateCode, country_code: countryCode, zip: zipCode, email: userEmail }, (customerPhone && { phone: customerPhone })),
-            items: [
-                {
-                    sync_variant_id: parseInt(variantId),
-                    quantity: orderQuantity,
-                },
-            ],
-            confirm: true,
-        };
-        console.log('📦 Sending order to Printful:', JSON.stringify(printfulPayload, null, 2));
-        // Place order on Printful
-        console.log("this is the printful api key ", printfulApiKey);
-        console.log("store id = ", storeId);
-        let printfulOrderId = null;
-        try {
-            const printfulOrder = yield fetch("https://api.printful.com/orders", {
-                method: "POST",
-                headers: Object.assign({ Authorization: `Bearer ${printfulApiKey}`, "Content-Type": "application/json" }, (storeId && { "X-PF-Store-Id": storeId })),
-                body: JSON.stringify(printfulPayload),
-            });
-            const printfulResponse = yield printfulOrder.json();
-            if (!printfulOrder.ok) {
-                console.error("❌ Printful order creation failed:");
-                console.error("Status:", printfulOrder.status);
-                console.error("Response:", JSON.stringify(printfulResponse, null, 2));
-                return res.status(500).json({
-                    error: "Printful order creation failed",
-                    details: printfulResponse.error || printfulResponse,
-                    orderItemId: orderItem.id,
-                    message: "Order saved in database but Printful order failed. Please contact support.",
-                });
+        // ✅ First create the Order
+        const order = yield prisma.order.create({
+            data: {
+                userId: parseInt(userId),
             }
-            else {
-                printfulOrderId = (_b = printfulResponse.result) === null || _b === void 0 ? void 0 : _b.id;
-                console.log("✅ Printful order created successfully!");
-                console.log("Printful Order ID:", printfulOrderId);
-                console.log("Order Status:", (_c = printfulResponse.result) === null || _c === void 0 ? void 0 : _c.status);
+        });
+        // ✅ Then create the OrderItem with correct fields
+        const orderItem = yield prisma.orderItem.create({
+            data: {
+                orderId: order.id,
+                productId: parseInt(productId),
+                quantity: orderQuantity,
+                variantId,
+                productImg,
+                productPrice,
+                productName,
+                status: status || OrderStatus.PENDING_PAYMENT,
+                totalAmount: calculatedTotal,
+                deliveryAddress,
+                userEmail,
+                city,
+                zipCode,
+                state,
+                country,
             }
-        }
-        catch (printfulError) {
-            console.error("❌ Printful service error:", printfulError);
-            return res.status(500).json({
-                error: "Printful service unavailable",
-                details: printfulError,
-                orderItemId: orderItem.id,
-                message: "Order saved in database but Printful order failed. Please contact support.",
-            });
-        }
+        });
+        console.log('✅ Order created in database:', order.id);
+        console.log('✅ Order item created:', orderItem.id);
         // Send order confirmation email
         try {
             yield fetch("https://gifq-sender-smtp-gifq.vercel.app/emails/order-confirmation", {
@@ -306,7 +454,6 @@ router.post("/users/:userId/order/items", (req, res) => __awaiter(void 0, void 0
                     email: userEmail,
                     orderDetails: {
                         orderId: orderItem.id,
-                        printfulOrderId: printfulOrderId,
                         productName,
                         productImg,
                         quantity: orderQuantity,
@@ -316,7 +463,9 @@ router.post("/users/:userId/order/items", (req, res) => __awaiter(void 0, void 0
                         city,
                         state,
                         zipCode,
-                        country: countryCode,
+                        country,
+                        customerName,
+                        customerPhone,
                     },
                 }),
             });
@@ -327,9 +476,9 @@ router.post("/users/:userId/order/items", (req, res) => __awaiter(void 0, void 0
         }
         return res.status(201).json({
             success: true,
+            order,
             orderItem,
-            printfulOrderId,
-            message: "Order created successfully and submitted to Printful",
+            message: "Order created successfully",
         });
     }
     catch (error) {

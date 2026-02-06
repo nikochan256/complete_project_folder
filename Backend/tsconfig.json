@@ -9,6 +9,7 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "exclude": ["prisma.config.ts","prisma","dist" , ]
+  "exclude": ["prisma.config.ts","prisma","dist" ],
+  "include": ["src/**/*"]
   // "exclude": ["prisma","dist" , ]
 }

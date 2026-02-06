@@ -1,25 +1,8 @@
 import multer from 'multer';
-import path from 'path';
 import { Request } from 'express';
 
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req: Request, file: Express.Multer.File, cb) => {
-    // Separate folders for different file types
-    if (file.fieldname === 'image') {
-      cb(null, 'uploads/store-logos');
-    } else if (file.fieldname === 'kybDocument') {
-      cb(null, 'uploads/kyb-documents');
-    } else {
-      cb(null, 'uploads/others');
-    }
-  },
-  filename: (req: Request, file: Express.Multer.File, cb) => {
-    // Generate unique filename: timestamp-originalname
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Use memory storage instead of disk storage for Vercel
+const storage = multer.memoryStorage();
 
 // File filter for validation
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {

@@ -3,6 +3,7 @@ import cors from "cors"
 const PORT = process.env.PORT || 4000 ;  
 import {router as userRouter} from "./routes/user.router.js"
 import MerchantRouter from "./routes/merchant.router.js"
+import adminRouter from "./routes/admin.router.js"
 import path from "node:path";
 import { Interface } from "node:readline";
 const app = express() ;
@@ -12,6 +13,7 @@ app.use(express.json())
 app.get("/health",(req,res)=>res.send("server healthy"))
 app.use("/user" , userRouter)
 app.use("/merchant" , MerchantRouter)
+app.use("/admin" , adminRouter )
 
 
 app.listen(PORT , ()=>console.log("server created at ",PORT))

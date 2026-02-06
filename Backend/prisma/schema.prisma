@@ -1,13 +1,183 @@
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// Enums
+model User {
+  id             Int                     @id @default(autoincrement())
+  email          String?                 @unique
+  name           String?
+  walletAddress  String                  @unique
+  homeAddress    String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  cart           Cart?
+  orders         Order[]
+  recentlyViewed RecentlyViewedProduct[]
+
+  @@map("users")
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  cartItems CartItem[]
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("carts")
+}
+
+model Seller {
+  id              Int       @id 
+  shopName        String
+  walletAddress   String    @unique
+  businessEmail   String    @unique
+  password        String
+  contactNumber   String?
+  businessAddress String?
+  logoImg         String?
+  description     String?
+  kybDocuments    String?
+  kybStatus       KYBStatus @default(PENDING)
+  isApproved      Boolean   @default(false)
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  api_key         String?   @unique
+  store_id        Int?      @unique
+  products        Product[]
+
+  @@map("sellers")
+}
+
+model Product {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String
+  price       Int
+  quantity    Int         @default(0)
+  category    String
+  image1      String
+  image2      String?
+  image3      String?
+  sellerId    Int
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  seller      Seller      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@index([category])
+  @@map("products")
+}
+
+model CartItem {
+  id           Int      @id @default(autoincrement())
+  quantity     Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  cartId       Int
+  variantId    String?
+  productImg   String
+  productName  String
+  productPrice Int
+  productId    Int
+  cart         Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([cartId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  userId     Int
+  orderItems OrderItem[]
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              Int         @id @default(autoincrement())
+  quantity        Int         @default(1)
+  orderId         Int
+  variantId       String?
+  productImg      String
+  productPrice    Int
+  productName     String
+  status          OrderStatus @default(PENDING_PAYMENT)
+  totalAmount     Int?
+  deliveryAddress String
+  userEmail       String
+  city            String
+  zipCode         String
+  state           String
+  country         String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  productId       Int
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Review {
+  id           Int      @id @default(autoincrement())
+  rating       Int
+  comment      String?
+  productId    Int
+  reviewerName String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([productId])
+  @@map("reviews")
+}
+
+model RecentlyViewedProduct {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  productId    Int
+  storeId      Int
+  productName  String
+  productImg   String
+  productPrice Int
+  variantId    String?
+  viewedAt     DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, viewedAt])
+  @@map("recently_viewed_products")
+}
+
 enum OrderStatus {
   PENDING_PAYMENT
   PAID
@@ -28,170 +198,4 @@ enum KYBStatus {
 enum PaymentMethod {
   ETH
   BTC
-}
-
-// User/Customer Model
-model User {
-  id            Int      @id @default(autoincrement())
-  email         String?  @unique
-  name          String?
-  walletAddress String   @unique
-  homeAddress   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  cart              Cart?
-  orders            Order[]
-  recentlyViewed    RecentlyViewedProduct[]
-
-  @@map("users")
-}
-
-model Cart {
-  id     Int  @id @default(autoincrement())
-  userId Int  @unique
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  cartItems CartItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@map("carts")
-}
-
-// Seller/Merchant Model
-model Seller {
-  id              Int     @id @default(autoincrement())
-  shopName        String
-  walletAddress   String  @unique
-  businessEmail   String  @unique
-  store_id        Int     @unique
-  api_key         String  @unique
-  contactNumber   String?
-  businessAddress String?
-  logoImg         String?
-  description     String?
-
-  // KYB Information
-  kybDocuments    String? // Store file paths/URLs as JSON or separate table
-  kybStatus       KYBStatus @default(PENDING)
-  isApproved      Boolean   @default(false)
-  approvedAt      DateTime?
-  rejectionReason String?
-
-  // Store all products as a big string (JSON stringified array)
-  productsData    String?   @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("sellers")
-}
-
-// Cart Item Model
-model CartItem {
-  id       Int @id @default(autoincrement())
-  quantity Int @default(1)
-
-  cartId Int
-  cart   Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-
-  variantId    String?
-  storeId      Int
-  productImg   String
-  productPrice Int
-  productName  String
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([cartId])
-  @@map("cart_items")
-}
-
-// Order Model
-model Order {
-  id     Int         @id @default(autoincrement())
-  userId Int
-  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  orderItems OrderItem[]
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@map("orders")
-}
-
-// Order Item Model
-model OrderItem {
-  id       Int @id @default(autoincrement())
-  quantity Int @default(1)
-
-  orderId Int
-  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  // Fields from CartItem
-  variantId    String?
-  storeId      Int
-  productImg   String
-  productPrice Int
-  productName  String
-
-  // Additional fields for OrderItem
-  status          OrderStatus @default(PENDING_PAYMENT)
-  totalAmount     Int?
-  deliveryAddress String
-  userEmail       String
-  city            String
-  zipCode         String
-  state           String
-  country         String
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([orderId])
-  @@map("order_items")
-}
-
-// Review Model
-model Review {
-  id      Int     @id @default(autoincrement())
-  rating  Int // 1-5 stars
-  comment String? @db.Text
-
-  productId Int
-
-  // Could link to User if you want verified purchases only
-  reviewerName String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([productId])
-  @@map("reviews")
-}
-
-// Recently Viewed Products Model
-model RecentlyViewedProduct {
-  id       Int @id @default(autoincrement())
-  
-  userId   Int
-  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  productId    Int
-  storeId      Int
-  productName  String
-  productImg   String
-  productPrice Int
-  variantId    String?
-
-  viewedAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([userId, viewedAt])
-  @@map("recently_viewed_products")
 }

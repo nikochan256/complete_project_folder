@@ -1,5 +1,5 @@
 import { json } from "node:stream/consumers";
-import { OrderStatus } from "../generated/prisma/enums.js";
+import { KYBStatus, OrderStatus } from "../generated/prisma/enums.js";
 import { Or } from "../generated/prisma/internal/prismaNamespace.js";
 import prisma from "../lib/prisma.js";
 
@@ -50,118 +50,118 @@ interface cartItemQuantityUpdate{
   cartItemId:number
 }
 
-export const createStore = async (payload: payloadInterface) => {
-  try {
-    console.log("🔍 Checking if seller already exists...");
+// export const createStore = async (payload: payloadInterface) => {
+//   try {
+//     console.log("🔍 Checking if seller already exists...");
 
-    // Check if wallet address already exists
-    const alreadySeller = await prisma.seller.findUnique({
-      where: { walletAddress: payload.walletAddress },
-    });
+//     // Check if wallet address already exists
+//     const alreadySeller = await prisma.seller.findUnique({
+//       where: { walletAddress: payload.walletAddress },
+//     });
 
-    if (alreadySeller) {
-      console.error("❌ Seller with this wallet address already exists");
-      throw new Error("A store with this wallet address already exists");
-    }
+//     if (alreadySeller) {
+//       console.error("❌ Seller with this wallet address already exists");
+//       throw new Error("A store with this wallet address already exists");
+//     }
 
-    // Check if business email already exists
-    const alreadyBusinessEmail = await prisma.seller.findUnique({
-      where: { businessEmail: payload.businessEmail },
-    });
+//     // Check if business email already exists
+//     const alreadyBusinessEmail = await prisma.seller.findUnique({
+//       where: { businessEmail: payload.businessEmail },
+//     });
 
-    if (alreadyBusinessEmail) {
-      console.error("❌ Seller with this business email already exists");
-      throw new Error("A store with this business email already exists");
-    }
+//     if (alreadyBusinessEmail) {
+//       console.error("❌ Seller with this business email already exists");
+//       throw new Error("A store with this business email already exists");
+//     }
 
-    console.log("💾 Creating new store in database...");
+//     console.log("💾 Creating new store in database...");
 
-    // Create new store
-    const store = await prisma.seller.create({
-      data: {
-        shopName: payload.shopName,
-        walletAddress: payload.walletAddress,
-        businessEmail: payload.businessEmail,
-        description: payload.description,
-        contactNumber: payload.contact,
-        businessAddress: payload.address ,
-        api_key: payload.api_key,
-        store_id: payload.store_id,
-        kybDocuments: payload.kybDocument,
-        logoImg: payload.logoImg,
-        isApproved: false,
-        createdAt: payload.createdAt || new Date(),
-        updatedAt: new Date(),
-      },
-    });
+//     // Create new store
+//     const store = await prisma.seller.create({
+//       data: {
+//         shopName: payload.shopName,
+//         walletAddress: payload.walletAddress,
+//         businessEmail: payload.businessEmail,
+//         description: payload.description,
+//         contactNumber: payload.contact,
+//         businessAddress: payload.address ,
+//         // api_key: payload.api_key,
+//         // store_id: payload.store_id,
+//         kybDocuments: payload.kybDocument,
+//         logoImg: payload.logoImg,
+//         isApproved: false,
+//         createdAt: payload.createdAt || new Date(),
+//         updatedAt: new Date(),
+//       },
+//     });
 
-    console.log("✅ Store created successfully:", store.id);
+//     console.log("✅ Store created successfully:", store.id);
 
-    return store;
-  } catch (err: any) {
-    console.error("❌ Error in createStore service:", err);
-    throw err;
-  }
-};
-
-
+//     return store;
+//   } catch (err: any) {
+//     console.error("❌ Error in createStore service:", err);
+//     throw err;
+//   }
+// };
 
 
 
-export const addToprintfullCart = async(payload: printfullCartpayload) => {
-  try {
-    console.log("request reached addToprintfullCart here")
+
+
+// export const addToprintfullCart = async(payload: printfullCartpayload) => {
+//   try {
+//     console.log("request reached addToprintfullCart here")
     
-    const cart = await prisma.cart.findUnique({
-      where: {
-        userId: payload.userId,
-      }
-    })
-    console.log(cart)
+//     const cart = await prisma.cart.findUnique({
+//       where: {
+//         userId: payload.userId,
+//       }
+//     })
+//     console.log(cart)
 
-    if (!cart) {
-      throw new Error("Cart not found for user")
-    }
+//     if (!cart) {
+//       throw new Error("Cart not found for user")
+//     }
 
-    // Check if item already exists in cart
-    const existingItem = await prisma.cartItem.findFirst({
-      where: {
-          cartId: cart.id,
-          variantId:payload.variant_id.toString()
-      }
-    })
+//     // Check if item already exists in cart
+//     const existingItem = await prisma.cartItem.findFirst({
+//       where: {
+//           cartId: cart.id,
+//           variantId:payload.variant_id.toString()
+//       }
+//     })
 
-    // If exists, update quantity; otherwise create new
-    if (existingItem) {
-      const updatedItem = await prisma.cartItem.update({
-        where: { id: existingItem.id },
-        data: {
-          quantity: existingItem.quantity + (payload.quantity || 1)
-        }
-      })
-      console.log(updatedItem)
-      return updatedItem
-    }
+//     // If exists, update quantity; otherwise create new
+//     if (existingItem) {
+//       const updatedItem = await prisma.cartItem.update({
+//         where: { id: existingItem.id },
+//         data: {
+//           quantity: existingItem.quantity + (payload.quantity || 1)
+//         }
+//       })
+//       console.log(updatedItem)
+//       return updatedItem
+//     }
 
-    const newCartItem = await prisma.cartItem.create({
-      data: {
-        cartId: cart.id,
-        storeId: payload.store_id,
-        variantId: payload.variant_id, // Fixed typo here
-        quantity: payload.quantity || 1,
-        productImg:payload.productImg,
-        productName:payload.productName,
-        productPrice : payload.productPrice
-      } 
-    }) 
+//     const newCartItem = await prisma.cartItem.create({
+//       data: {
+//         cartId: cart.id,
+//         // storeId: payload.store_id,
+//         variantId: payload.variant_id, // Fixed typo here
+//         quantity: payload.quantity || 1,
+//         productImg:payload.productImg,
+//         productName:payload.productName,
+//         productPrice : payload.productPrice
+//       } 
+//     }) 
 
-    console.log(newCartItem)
-    return newCartItem
+//     console.log(newCartItem)
+//     return newCartItem
 
-  } catch (err) {
-    throw err
-  }
-}
+//   } catch (err) {
+//     throw err
+//   }
+// }
 
 
 
@@ -221,6 +221,163 @@ export const updateQuantityinCart = async(payload:cartItemQuantityUpdate)=>{
     throw err
   }
 }
+
+
+export async function getDashboardMetrics() {
+  try {
+    // Fetch all metrics in parallel for better performance
+    const [totalUsers, totalMerchants, pendingApprovals, approvedMerchants] = await Promise.all([
+      // Count total users
+      prisma.user.count(),
+      
+      // Count total merchants/sellers
+      prisma.seller.count(),
+      
+      // Count sellers with PENDING KYB status
+      prisma.seller.count({
+        where: {
+          kybStatus: "PENDING"
+        }
+      }),
+      
+      // Count approved merchants
+      prisma.seller.count({
+        where: {
+          kybStatus: "APPROVED",
+          isApproved: true
+        }
+      })
+    ])
+
+    return {
+      totalUsers,
+      totalMerchants,
+      pendingApprovals,
+      approvedMerchants
+    }
+  } catch (error) {
+    console.error("Error in getDashboardMetrics:", error)
+    throw error
+  }
+}
+
+
+export async function getPendingMerchants() {
+  try {
+    const pendingMerchants = await prisma.seller.findMany({
+      where: {
+        kybStatus: "PENDING"
+      },
+      select: {
+        id: true,
+        shopName: true,
+        businessEmail: true,
+        contactNumber: true,
+        businessAddress: true,
+        createdAt: true,
+        kybStatus: true,
+        kybDocuments: true,
+        logoImg: true,
+        description: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    return pendingMerchants
+  } catch (error) {
+    console.error("Error in getPendingMerchants:", error)
+    throw error
+  }
+}
+
+export async function getMerchantById(merchantId: number) {
+  try {
+    const merchant = await prisma.seller.findUnique({
+      where: {
+        id: merchantId
+      },
+      select: {
+        id: true,
+        shopName: true,
+        walletAddress: true,
+        businessEmail: true,
+        contactNumber: true,
+        businessAddress: true,
+        logoImg: true,
+        description: true,
+        kybDocuments: true,
+        kybStatus: true,
+        isApproved: true,
+        approvedAt: true,
+        rejectionReason: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    })
+
+    return merchant
+  } catch (error) {
+    console.error("Error in getMerchantById:", error)
+    throw error
+  }
+}
+
+export async function updateMerchantVerification(
+  merchantId: number, 
+  status: 'approved' | 'rejected',
+  rejectionReason?: string
+) {
+  try {
+    const updateData: any = {
+      kybStatus: status === 'approved' ? KYBStatus.APPROVED : KYBStatus.REJECTED,
+      isApproved: status === 'approved',
+      updatedAt: new Date()
+    }
+
+    if (status === 'approved') {
+      updateData.approvedAt = new Date()
+      updateData.rejectionReason = null
+    } else if (rejectionReason) {
+      updateData.rejectionReason = rejectionReason
+      updateData.approvedAt = null
+    }
+
+    const updatedMerchant = await prisma.seller.update({
+      where: {
+        id: merchantId
+      },
+      data: updateData
+    })
+
+    return updatedMerchant
+  } catch (error) {
+    console.error("Error in updateMerchantVerification:", error)
+    throw error
+  }
+}
+
+
+export async function getAllMerchants() {
+  return await prisma.seller.findMany({
+    orderBy: {
+      createdAt: 'desc'
+    }
+  })
+}
+
+export async function getMerchantsByStatus(status: KYBStatus) {
+  return await prisma.seller.findMany({
+    where: {
+      kybStatus: status
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  })
+}
+
 
 export const getStoreWalletAddress = async(storeId:number)=>{
 try{
