@@ -35,12 +35,12 @@ function initializeTransporter() {
       transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: Number(process.env.SMTP_PORT),
-        secure: false,
+        secure: process.env.SMTP_SECURE === "true",
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
-      });
+      });      
       smtpReady = true;
       console.log("📧 SMTP ready: emails can be sent");
     }
@@ -536,6 +536,7 @@ Please keep your credentials secure and do not share them with anyone.`;
     return res.status(500).json({ ok: false, error: "Failed to send email" });
   }
 });
+
 // SEND ORDER CONFIRMATION EMAIL WITH GIFQ GIFT CARD
 app.post("/emails/order-confirmation", async (req, res) => {
   try {
